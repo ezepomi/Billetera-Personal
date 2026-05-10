@@ -6,7 +6,7 @@
     <title>Billetera Verde - Eze</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase Compat SDKs (IMPORTANTE: Sin estas versiones la app falla) -->
+    <!-- Firebase Compat SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -17,7 +17,12 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAF9; margin: 0; touch-action: manipulation; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #F8FAF9; 
+            margin: 0; 
+            touch-action: manipulation;
+        }
         
         @keyframes pawWalk {
             0%, 100% { opacity: 0.1; transform: scale(0.8); }
@@ -27,6 +32,9 @@
         .d1 { animation-delay: 0.2s; }
         .d2 { animation-delay: 0.4s; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Sombra suave para elementos flotantes */
+        .soft-shadow { box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -35,7 +43,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- TU CONFIGURACIÓN DE FIREBASE (Verificada) ---
+        // --- CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDtmxXb4wdkelAGeISytgj5JqQ3BGZvpzM",
             authDomain: "billetera-personal-d4ca9.firebaseapp.com",
@@ -45,20 +53,66 @@
             appId: "1:762760084018:web:de9213b7defd8e1dc11a2b"
         };
 
-        // Inicializar Firebase (Solo una vez)
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // Icono de Huella de Gato
-        const PawIcon = ({ className }) => (
-            <svg viewBox="0 0 100 100" className={className} fill="currentColor">
-                <path d="M50 85c-12 0-22-8-22-22 0-12 10-22 22-22s22 10 22 22c0 14-10 22-22 22zM28 38c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16-14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm24 0c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16 14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9z" />
-            </svg>
-        );
+        // --- NUEVOS ICONOS DETALLADOS (SVG) ---
+        const Icon = {
+            General: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                </svg>
+            ),
+            Goals: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
+                </svg>
+            ),
+            Debts: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <line x1="2" y1="10" x2="22" y2="10" />
+                    <path d="M7 15l2.5-2.5 2.5 2.5" transform="rotate(180 9.5 15)" />
+                </svg>
+            ),
+            History: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 8v4l3 3" />
+                    <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
+                </svg>
+            ),
+            Wallet: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                    <path d="M16 12h5" />
+                </svg>
+            ),
+            Cash: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <path d="M6 12h.01M18 12h.01" />
+                </svg>
+            ),
+            Plus: () => (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+            ),
+            Trash: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+            ),
+            Paw: ({ className }) => (
+                <svg viewBox="0 0 100 100" className={className} fill="currentColor">
+                    <path d="M50 85c-12 0-22-8-22-22 0-12 10-22 22-22s22 10 22 22c0 14-10 22-22 22zM28 38c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16-14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm24 0c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16 14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9z" />
+                </svg>
+            )
+        };
 
         const App = () => {
             const [user, setUser] = useState(null);
@@ -70,39 +124,28 @@
             const [debts, setDebts] = useState([]);
             const [modal, setModal] = useState(null);
 
-            // 1. Escuchar sesión al cargar
             useEffect(() => {
-                const unsubAuth = auth.onAuthStateChanged((u) => {
+                return auth.onAuthStateChanged((u) => {
                     setUser(u);
                     setIsAuthChecking(false);
                 });
-                return () => unsubAuth();
             }, []);
 
-            // 2. Cargar datos si el usuario está logueado
             useEffect(() => {
                 if (!user) return;
-                
                 setIsLoadingData(true);
                 const path = `usuarios/${user.uid}`;
                 
-                // Suscripciones a Firestore
-                const unsubAcc = db.collection(`${path}/cuentas`).onSnapshot(s => {
-                    setAccounts(s.docs.map(d => ({id: d.id, ...d.data()})));
-                });
-                const unsubGoals = db.collection(`${path}/metas`).onSnapshot(s => {
-                    setGoals(s.docs.map(d => ({id: d.id, ...d.data()})));
-                });
+                const unsubAcc = db.collection(`${path}/cuentas`).onSnapshot(s => setAccounts(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const unsubGoals = db.collection(`${path}/metas`).onSnapshot(s => setGoals(s.docs.map(d => ({id: d.id, ...d.data()}))));
                 const unsubDebts = db.collection(`${path}/deudas`).onSnapshot(s => {
                     setDebts(s.docs.map(d => ({id: d.id, ...d.data()})));
-                    // Simular carga para que el gato se vea
-                    setTimeout(() => setIsLoadingData(false), 2500);
+                    setTimeout(() => setIsLoadingData(false), 2000);
                 });
 
                 return () => { unsubAcc(); unsubGoals(); unsubDebts(); };
             }, [user]);
 
-            // Cálculos
             const stats = useMemo(() => {
                 const accs = accounts || [];
                 const dts = debts || [];
@@ -113,20 +156,17 @@
                 return { total: fmt(dig + cash), dig: fmt(dig), cash: fmt(cash), deb: fmt(deb) };
             }, [accounts, debts]);
 
-            // --- VISTAS DE ESTADO ---
-
             if (isAuthChecking || (user && isLoadingData)) return (
                 <div className="fixed inset-0 bg-white flex flex-col items-center justify-center overflow-hidden">
                     <div className="flex gap-4 mb-8">
-                        <PawIcon className="w-12 h-12 text-emerald-600 paw" />
-                        <PawIcon className="w-12 h-12 text-emerald-600 paw d1" />
-                        <PawIcon className="w-12 h-12 text-emerald-600 paw d2" />
+                        <Icon.Paw className="w-12 h-12 text-emerald-600 paw" />
+                        <Icon.Paw className="w-12 h-12 text-emerald-600 paw d1" />
+                        <Icon.Paw className="w-12 h-12 text-emerald-600 paw d2" />
                     </div>
                     <div className="text-center">
                         <h2 className="text-4xl font-black italic text-emerald-950 uppercase mb-1 tracking-tighter">GENERAL</h2>
                         <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em]">Sincronizando...</p>
                     </div>
-                    {/* GATA ASOMÁNDOSE POR ABAJO */}
                     <div className="absolute bottom-0 w-full flex justify-center translate-y-[20%]">
                         <img src="1778434269697~2.png" alt="Gata" className="w-full max-w-sm h-auto" />
                     </div>
@@ -134,25 +174,15 @@
             );
 
             if (!user) return (
-                <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8 overflow-hidden">
-                    <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center relative z-10">
+                <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8">
+                    <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center">
                         <div className="bg-emerald-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-emerald-600 font-black text-4xl italic">$</div>
                         <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter text-slate-900">Verde App</h1>
-                        <p className="text-slate-400 font-bold mb-12 text-[10px] uppercase tracking-widest px-4 leading-loose">Tus finanzas seguras y guardadas en la nube</p>
-                        <button 
-                            onClick={() => auth.signInWithPopup(provider)}
-                            className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
-                        >
-                            Ingresar con Google
-                        </button>
-                    </div>
-                    <div className="absolute bottom-0 opacity-10 pointer-events-none translate-y-16">
-                        <img src="1778434269697~2.png" alt="Cat" className="w-full max-w-md" />
+                        <p className="text-slate-400 font-bold mb-10 text-[10px] uppercase tracking-widest px-4">Tus finanzas seguras en la nube</p>
+                        <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Ingresar con Google</button>
                     </div>
                 </div>
             );
-
-            // --- DASHBOARD ---
 
             return (
                 <div className="min-h-screen pb-44 no-scrollbar">
@@ -162,19 +192,18 @@
                                 <h1 className="text-3xl font-black italic uppercase tracking-tighter">
                                     {activeTab === 'home' ? 'GENERAL' : activeTab === 'goals' ? 'OBJETIVOS' : 'DEUDAS'}
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase">SALIR</button>
+                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black">SALIR</button>
                             </div>
-                            <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{activeTab === 'debts' ? 'Deuda Pendiente' : 'Balance Total'}</p>
+                            <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{activeTab === 'debts' ? 'DEUDA PENDIENTE' : 'BALANCE TOTAL'}</p>
                             <h2 className="text-6xl font-black tracking-tighter mb-12">{activeTab === 'debts' ? stats.deb : stats.total}</h2>
-                            
                             {activeTab === 'home' && (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white/10 backdrop-blur-md p-5 rounded-[2rem] border border-white/10">
-                                        <p className="text-[10px] font-black uppercase text-emerald-300 mb-1">Digital</p>
+                                    <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/10">
+                                        <p className="text-[11px] font-black uppercase text-emerald-300 mb-1">Digital</p>
                                         <p className="text-2xl font-bold font-mono tracking-tighter">{stats.dig}</p>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-5 rounded-[2rem] border border-white/10">
-                                        <p className="text-[10px] font-black uppercase text-amber-300 mb-1">Efectivo</p>
+                                    <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/10">
+                                        <p className="text-[11px] font-black uppercase text-amber-300 mb-1">Efectivo</p>
                                         <p className="text-2xl font-bold font-mono tracking-tighter">{stats.cash}</p>
                                     </div>
                                 </div>
@@ -184,38 +213,57 @@
 
                     <main className="max-w-xl mx-auto px-8 -mt-12 space-y-12 relative z-20">
                         {activeTab === 'home' && (
-                            <div className="space-y-12 animate-in fade-in">
+                            <div className="space-y-10 animate-in fade-in">
                                 <div className="flex gap-4">
-                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-8 rounded-[3.5rem] shadow-sm font-black text-slate-500 uppercase text-xs active:scale-95 transition-all">OPERAR</button>
-                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-8 rounded-[3.5rem] shadow-xl text-emerald-950 font-black text-xs uppercase active:scale-95 transition-all">CUENTA</button>
+                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-8 rounded-[3.5rem] shadow-sm flex flex-col items-center gap-3 font-black text-slate-500 uppercase text-[10px] tracking-widest active:scale-95 transition-all">
+                                        <div className="text-emerald-600 bg-emerald-50 p-2 rounded-xl"><Icon.History /></div>
+                                        Movimiento
+                                    </button>
+                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-8 rounded-[3.5rem] shadow-xl text-emerald-950 flex flex-col items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">
+                                        <Icon.Plus />
+                                        Cuenta
+                                    </button>
                                 </div>
-                                <div className="space-y-4">
-                                    {accounts.map(a => (
-                                        <div key={a.id} className="bg-white p-7 rounded-[3rem] shadow-sm flex items-center justify-between">
-                                            <div>
-                                                <p className="font-black text-slate-800 text-lg mb-1 leading-none">{a.name}</p>
-                                                <span className="text-[10px] font-black uppercase text-slate-400">{a.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
+                                <section className="space-y-4">
+                                    <h3 className="font-black text-slate-800 uppercase tracking-widest text-[11px] opacity-40 px-4">Mis Activos</h3>
+                                    {accounts.map(acc => (
+                                        <div key={acc.id} className="bg-white p-7 rounded-[3rem] shadow-sm flex items-center justify-between group">
+                                            <div className="flex items-center gap-5">
+                                                <div className={`p-4 rounded-3xl ${acc.type === 'wallet' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                    {acc.type === 'wallet' ? <Icon.Wallet /> : <Icon.Cash />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-slate-800 text-lg leading-none mb-1">{acc.name}</p>
+                                                    <span className="text-[10px] font-black uppercase text-slate-400">{acc.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <p className="font-black text-slate-900 text-xl tracking-tighter">${Number(a.balance || 0).toLocaleString('es-AR')}</p>
-                                                <button onClick={() => db.collection(`usuarios/${user.uid}/cuentas`).doc(a.id).delete()} className="text-rose-200 hover:text-rose-500 font-black px-2 transition-colors">×</button>
+                                                <p className="font-black text-slate-900 text-xl tracking-tighter">${Number(acc.balance).toLocaleString('es-AR')}</p>
+                                                <button onClick={() => db.collection(`usuarios/${user.uid}/cuentas`).doc(acc.id).delete()} className="text-slate-200 hover:text-rose-500 transition-colors"><Icon.Trash /></button>
                                             </div>
                                         </div>
                                     ))}
-                                </div>
+                                </section>
                             </div>
                         )}
 
                         {activeTab === 'goals' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-10 rounded-[4rem] font-black text-emerald-600 text-xs uppercase">Nuevo Objetivo</button>
+                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-12 rounded-[4.5rem] font-black text-emerald-600 text-xs uppercase flex flex-col items-center gap-4">
+                                    <Icon.Goals /> Nueva Meta
+                                </button>
                                 {goals.map(g => (
                                     <div key={g.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between group">
-                                        <div>
-                                            <p className="font-black text-slate-800 text-2xl leading-none mb-2">{g.name}</p>
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${(g.currentAmount||0).toLocaleString()} / ${(g.targetAmount||0).toLocaleString()}</p>
+                                        <div className="flex items-center gap-6">
+                                            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-3xl font-black text-xs min-w-[70px] text-center">
+                                                {Math.round((g.currentAmount/g.targetAmount)*100)}%
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-slate-800 text-2xl leading-none mb-2">{g.name}</p>
+                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${(g.currentAmount||0).toLocaleString()} de ${(g.targetAmount||0).toLocaleString()}</p>
+                                            </div>
                                         </div>
-                                        <button onClick={() => setModal({type:'save', id:g.id})} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg active:scale-90 transition-all">SUMAR</button>
+                                        <button onClick={() => setModal({type:'save', id:g.id})} className="bg-emerald-600 text-white px-7 py-4 rounded-[1.5rem] font-black text-xs uppercase shadow-lg shadow-emerald-100">SUMAR</button>
                                     </div>
                                 ))}
                             </div>
@@ -223,73 +271,74 @@
 
                         {activeTab === 'debts' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-10 rounded-[4rem] font-black text-rose-600 text-xs uppercase">Cargar Deuda</button>
+                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-12 rounded-[4.5rem] font-black text-rose-600 text-xs uppercase flex flex-col items-center gap-4">
+                                    <Icon.Debts /> Nueva Deuda
+                                </button>
                                 {debts.map(d => (
-                                    <div key={d.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between">
-                                        <p className="font-black text-slate-800 text-2xl leading-none">{d.name}</p>
-                                        <div className="flex items-center gap-4">
-                                            <p className="font-black text-rose-600 text-3xl tracking-tighter">${Number(d.amount || 0).toLocaleString()}</p>
-                                            <button onClick={() => db.collection(`usuarios/${user.uid}/deudas`).doc(d.id).delete()} className="text-rose-200 hover:text-rose-500 font-black px-2">×</button>
+                                    <div key={d.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between group">
+                                        <div className="flex items-center gap-6">
+                                            <div className="bg-rose-50 text-rose-600 p-5 rounded-3xl"><Icon.Debts /></div>
+                                            <p className="font-black text-slate-800 text-2xl leading-none">{d.name}</p>
                                         </div>
+                                        <p className="font-black text-rose-600 text-3xl tracking-tighter">${Number(d.amount).toLocaleString()}</p>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </main>
 
-                    {/* NAVBAR */}
                     <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[90]">
                         <div className="bg-slate-900/95 backdrop-blur-3xl px-12 py-8 rounded-[4rem] flex justify-between items-center shadow-2xl">
-                            <button onClick={() => setActiveTab('home')} className={`text-2xl transition-all ${activeTab === 'home' ? 'text-emerald-400 scale-125 font-black' : 'text-white/20'}`}>■</button>
-                            <button onClick={() => setActiveTab('goals')} className={`text-2xl transition-all ${activeTab === 'goals' ? 'text-emerald-400 scale-125 font-black' : 'text-white/20'}`}>●</button>
-                            <button onClick={() => setModal('tx')} className={`w-14 h-14 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] text-3xl font-black transition-all shadow-xl active:scale-90 ${activeTab === 'debts' ? 'bg-rose-500' : 'bg-emerald-500'}`}>+</button>
-                            <button onClick={() => setActiveTab('debts')} className={`text-2xl transition-all ${activeTab === 'debts' ? 'text-rose-400 scale-125 font-black' : 'text-white/20'}`}>▲</button>
-                            <button className="text-white/20 text-2xl font-black">H</button>
+                            <button onClick={() => setActiveTab('home')} className={`transition-all ${activeTab === 'home' ? 'text-emerald-400 scale-125' : 'text-white/20'}`}><Icon.General /></button>
+                            <button onClick={() => setActiveTab('goals')} className={`transition-all ${activeTab === 'goals' ? 'text-emerald-400 scale-125' : 'text-white/20'}`}><Icon.Goals /></button>
+                            <div className="relative">
+                                <button onClick={() => setModal('tx')} className={`w-16 h-16 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] text-3xl font-black transition-all shadow-xl active:scale-90 ${activeTab === 'debts' ? 'bg-rose-500' : 'bg-emerald-500'}`}>
+                                    <Icon.Plus />
+                                </button>
+                            </div>
+                            <button onClick={() => setActiveTab('debts')} className={`transition-all ${activeTab === 'debts' ? 'text-rose-400 scale-125' : 'text-white/20'}`}><Icon.Debts /></button>
+                            <button className="text-white/20"><Icon.History /></button>
                         </div>
                     </nav>
 
-                    {/* MODAL */}
                     {modal && (
                         <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md px-0 sm:px-4">
-                            <div className="bg-white w-full max-w-md rounded-t-[4.5rem] sm:rounded-[3.5rem] p-10 shadow-2xl animate-in slide-in-from-bottom">
-                                <div className="flex justify-between items-center mb-8 px-2">
-                                    <h3 className="text-xl font-black italic uppercase tracking-tighter">Cargar Datos</h3>
-                                    <button onClick={() => setModal(null)} className="text-slate-300 font-black text-3xl p-2">×</button>
+                            <div className="bg-white w-full max-w-md rounded-t-[5rem] sm:rounded-[4rem] p-12 shadow-2xl animate-in slide-in-from-bottom">
+                                <div className="flex justify-between items-center mb-10">
+                                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Cargar Datos</h3>
+                                    <button onClick={() => setModal(null)} className="text-slate-300 font-black text-3xl p-2 transition-transform hover:scale-110">×</button>
                                 </div>
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
                                     const d = new FormData(e.target);
                                     const path = `usuarios/${user.uid}`;
-                                    
                                     if (modal === 'acc') await db.collection(`${path}/cuentas`).add({ name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')) });
                                     if (modal === 'goal') await db.collection(`${path}/metas`).add({ name: d.get('n'), targetAmount: Number(d.get('t')), currentAmount: 0 });
                                     if (modal === 'debt') await db.collection(`${path}/deudas`).add({ name: d.get('n'), amount: Number(d.get('a')) });
-                                    if (modal === 'tx') {
+                                    if (modal === 'tx' || modal.type === 'save') {
                                         const accId = d.get('acc');
                                         const acc = accounts.find(a => a.id === accId);
                                         const amt = Number(d.get('amt'));
-                                        const newB = d.get('type') === 'i' ? Number(acc.balance || 0) + amt : Number(acc.balance || 0) - amt;
-                                        await db.collection(`${path}/cuentas`).doc(accId).update({ balance: newB });
-                                    }
-                                    if (modal.type === 'save') {
-                                        const amt = Number(d.get('amt'));
-                                        const accId = d.get('acc');
-                                        const acc = accounts.find(a => a.id === accId);
-                                        const goal = goals.find(g => g.id === modal.id);
-                                        await db.collection(`${path}/cuentas`).doc(accId).update({ balance: Number(acc.balance || 0) - amt });
-                                        await db.collection(`${path}/metas`).doc(modal.id).update({ currentAmount: Number(goal.currentAmount || 0) + amt });
+                                        if (modal === 'tx') {
+                                            const newB = d.get('type') === 'i' ? Number(acc.balance) + amt : Number(acc.balance) - amt;
+                                            await db.collection(`${path}/cuentas`).doc(accId).update({ balance: newB });
+                                        } else {
+                                            const goal = goals.find(g => g.id === modal.id);
+                                            await db.collection(`${path}/cuentas`).doc(accId).update({ balance: Number(acc.balance) - amt });
+                                            await db.collection(`${path}/metas`).doc(modal.id).update({ currentAmount: Number(goal.currentAmount) + amt });
+                                        }
                                     }
                                     setModal(null);
-                                }} className="space-y-5">
+                                }} className="space-y-6">
                                     {modal === 'acc' && <><input name="n" required placeholder="Nombre (ej. Galicia)" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Virtual / Banco</option><option value="cash">Efectivo</option></select><input name="b" type="number" required placeholder="Saldo actual" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
-                                    {modal === 'goal' && <><input name="n" required placeholder="Meta" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" type="number" required placeholder="Objetivo $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
-                                    {modal === 'debt' && <><input name="n" required placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" type="number" required placeholder="Total $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600 text-center" /></>}
+                                    {modal === 'goal' && <><input name="n" required placeholder="¿Para qué es el ahorro?" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" type="number" required placeholder="Objetivo de ahorro $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
+                                    {modal === 'debt' && <><input name="n" required placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" type="number" required placeholder="Monto total $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600 text-center" /></>}
                                     {(modal === 'tx' || modal.type === 'save') && <>
                                         <select name="acc" required className="w-full p-5 bg-slate-50 rounded-2xl font-bold">{accounts.map(a => <option key={a.id} value={a.id}>{a.name} (${(a.balance||0).toLocaleString()})</option>)}</select>
-                                        {modal === 'tx' && <div className="flex gap-3"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="i" defaultChecked className="mr-1" /> INGRESO</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="g" className="mr-1" /> GASTO</label></div>}
+                                        {modal === 'tx' && <div className="flex gap-4"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="i" defaultChecked className="mr-2" /> INGRESO</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="g" className="mr-2" /> GASTO</label></div>}
                                         <input name="amt" type="number" required placeholder="Monto $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-5xl text-center" />
                                     </>}
-                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest mt-4">Confirmar</button>
+                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest mt-4 hover:bg-slate-800 transition-colors shadow-xl">Confirmar</button>
                                 </form>
                             </div>
                         </div>
