@@ -17,24 +17,19 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #F8FAF9; 
-            margin: 0; 
-            touch-action: manipulation;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAF9; margin: 0; touch-action: manipulation; }
         
-        @keyframes pawWalk {
+        @keyframes walk {
             0%, 100% { opacity: 0.1; transform: scale(0.8); }
             50% { opacity: 1; transform: scale(1.1); }
         }
-        .paw { animation: pawWalk 1.2s infinite ease-in-out; }
+        .paw { animation: walk 1.2s infinite ease-in-out; }
         .d1 { animation-delay: 0.2s; }
         .d2 { animation-delay: 0.4s; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Evitar que los números rompan el diseño */
-        .balance-card { word-break: break-all; overflow-wrap: break-word; }
+        /* Ajuste para que los números no se escapen */
+        .balance-text { word-break: break-all; line-height: 1; }
     </style>
 </head>
 <body>
@@ -43,7 +38,6 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDtmxXb4wdkelAGeISytgj5JqQ3BGZvpzM",
             authDomain: "billetera-personal-d4ca9.firebaseapp.com",
@@ -58,18 +52,15 @@
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- ICONOS ---
         const Icon = {
             General: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
             Goals: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
             Debts: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M7 15l2.5-2.5 2.5 2.5" transform="rotate(180 9.5 15)"/></svg>,
-            History: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>,
             Plus: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
             Play: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>,
-            Edit: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-            Trash: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
             Pause: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
-            Check: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
+            Trash: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+            Edit: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
             Paw: ({ className }) => (
                 <svg viewBox="0 0 100 100" className={className} fill="currentColor">
                     <path d="M50 85c-12 0-22-8-22-22 0-12 10-22 22-22s22 10 22 22c0 14-10 22-22 22zM28 38c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16-14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm24 0c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16 14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9z" />
@@ -77,20 +68,18 @@
             )
         };
 
-        // Componente de progreso circular
-        const CircularProgress = ({ percentage, size = 60 }) => {
-            const radius = 20;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (percentage / 100) * circumference;
+        const CircularChart = ({ percent }) => {
+            const r = 18;
+            const circ = 2 * Math.PI * r;
+            const offset = circ - (percent / 100) * circ;
             return (
-                <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-                    <svg width={size} height={size} viewBox="0 0 50 50" className="transform -rotate-90">
-                        <circle cx="25" cy="25" r={radius} stroke="#E2E8F0" strokeWidth="4" fill="transparent" />
-                        <circle cx="25" cy="25" r={radius} stroke="#10B981" strokeWidth="4" fill="transparent" 
-                            strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" 
-                            className="transition-all duration-1000 ease-out" />
+                <div className="relative flex items-center justify-center w-16 h-16">
+                    <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="20" cy="20" r={r} stroke="#E2E8F0" strokeWidth="4" fill="transparent" viewBox="0 0 40 40"/>
+                        <circle cx="20" cy="20" r={r} stroke="#10B981" strokeWidth="4" fill="transparent" 
+                            strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000"/>
                     </svg>
-                    <span className="absolute text-[10px] font-black text-slate-800">{Math.round(percentage)}%</span>
+                    <span className="absolute text-[10px] font-black">{Math.round(percent)}%</span>
                 </div>
             );
         };
@@ -121,7 +110,7 @@
                 const unsubGoals = db.collection(`${path}/metas`).onSnapshot(s => setGoals(s.docs.map(d => ({id: d.id, ...d.data()}))));
                 const unsubDebts = db.collection(`${path}/deudas`).onSnapshot(s => {
                     setDebts(s.docs.map(d => ({id: d.id, ...d.data()})));
-                    setTimeout(() => setIsLoadingData(false), 2500);
+                    setTimeout(() => setIsLoadingData(false), 2000);
                 });
 
                 return () => { unsubAcc(); unsubGoals(); unsubDebts(); };
@@ -132,27 +121,26 @@
                 const dts = debts || [];
                 const dig = accs.filter(a => a.type === 'wallet').reduce((s, a) => s + Number(a.balance || 0), 0);
                 const cash = accs.filter(a => a.type === 'cash').reduce((s, a) => s + Number(a.balance || 0), 0);
-                const totalBalanceNum = dig + cash;
-                const deb = dts.reduce((s, d) => s + Number((d.amount || 0) - (d.paidAmount || 0)), 0);
+                const rawTotal = dig + cash;
+                const debTotal = dts.reduce((s, d) => s + (Number(d.amount || 0) - Number(d.paid || 0)), 0);
                 
-                const fmt = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
-                return { total: fmt(totalBalanceNum), totalNum: totalBalanceNum, dig: fmt(dig), cash: fmt(cash), deb: fmt(deb) };
+                const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v);
+                return { total: fmt(rawTotal), totalNum: rawTotal, dig: fmt(dig), cash: fmt(cash), deb: fmt(debTotal) };
             }, [accounts, debts]);
 
             if (isAuthChecking || (user && isLoadingData)) return (
-                <div className="fixed inset-0 bg-white flex flex-col items-center justify-between overflow-hidden pt-20 pb-0">
+                <div className="fixed inset-0 bg-white flex flex-col items-center justify-between overflow-hidden pt-20">
                     <div className="flex gap-4">
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw" />
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw d1" />
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw d2" />
                     </div>
-                    <div className="text-center z-10 px-6">
-                        <h2 className="text-5xl sm:text-7xl font-black italic text-emerald-950 uppercase mb-0 tracking-tighter">CYDONIA</h2>
-                        <p className="text-emerald-800 font-black text-lg sm:text-2xl uppercase tracking-[0.4em] mb-4">INDUSTRIES</p>
-                        <p className="text-slate-300 font-bold text-[10px] uppercase tracking-[0.5em] animate-pulse">Sincronizando Sistema...</p>
+                    <div className="text-center z-10">
+                        <h2 className="text-6xl font-black italic text-emerald-950 uppercase tracking-tighter">CYDONIA</h2>
+                        <p className="text-emerald-800 font-black text-xl uppercase tracking-[0.3em]">INDUSTRIES</p>
                     </div>
                     <div className="w-full flex justify-center translate-y-[15%]">
-                        <img src="1778434269697~2.png" alt="Gata" className="w-full max-w-sm h-auto object-contain" />
+                        <img src="1778434269697~2.png" className="w-full max-w-sm" />
                     </div>
                 </div>
             );
@@ -161,9 +149,8 @@
                 <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8">
                     <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center">
                         <div className="bg-emerald-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-emerald-600 font-black text-4xl italic">$</div>
-                        <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter">Verde App</h1>
-                        <p className="text-slate-400 font-bold mb-10 text-[10px] uppercase tracking-widest px-4">Accede a Cydonia Industries</p>
-                        <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Ingresar con Google</button>
+                        <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter">Cydonia App</h1>
+                        <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest active:scale-95 transition-all">Ingresar con Google</button>
                     </div>
                 </div>
             );
@@ -176,20 +163,19 @@
                                 <h1 className="text-3xl font-black italic uppercase tracking-tighter">
                                     {activeTab === 'home' ? 'GENERAL' : activeTab === 'goals' ? 'OBJETIVOS' : 'DEUDAS'}
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase">SALIR</button>
+                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase">SALIR</button>
                             </div>
-                            <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{activeTab === 'debts' ? 'DEUDA PENDIENTE' : 'BALANCE TOTAL'}</p>
-                            <h2 className="text-5xl sm:text-6xl font-black tracking-tighter mb-12 break-all">{activeTab === 'debts' ? stats.deb : stats.total}</h2>
-                            
+                            <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{isDebtMode ? 'PENDIENTE' : 'DISPONIBLE'}</p>
+                            <h2 className="text-5xl font-black tracking-tighter mb-10 balance-text">{isDebtMode ? stats.deb : stats.total}</h2>
                             {activeTab === 'home' && (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white/10 backdrop-blur-md p-5 sm:p-6 rounded-[2.5rem] border border-white/10 flex flex-col min-w-0">
+                                    <div className="bg-white/10 p-5 rounded-[2.5rem] border border-white/10 overflow-hidden">
                                         <p className="text-[10px] font-black uppercase text-emerald-300 mb-1">Digital</p>
-                                        <p className="text-xl sm:text-2xl font-bold font-mono tracking-tighter truncate">{stats.dig}</p>
+                                        <p className="text-xl font-bold font-mono truncate">{stats.dig}</p>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-5 sm:p-6 rounded-[2.5rem] border border-white/10 flex flex-col min-w-0">
-                                        <p className="text-[10px] font-black uppercase text-amber-300 mb-1">Efectivo</p>
-                                        <p className="text-xl sm:text-2xl font-bold font-mono tracking-tighter truncate">{stats.cash}</p>
+                                    <div className="bg-white/10 p-5 rounded-[2.5rem] border border-white/10 overflow-hidden">
+                                        <p className="text-[10px] font-black uppercase text-amber-300 mb-1">Cash</p>
+                                        <p className="text-xl font-bold font-mono truncate">{stats.cash}</p>
                                     </div>
                                 </div>
                             )}
@@ -200,65 +186,49 @@
                         {activeTab === 'home' && (
                             <div className="space-y-10 animate-in fade-in">
                                 <div className="flex gap-4">
-                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-7 rounded-[3.5rem] shadow-sm flex flex-col items-center gap-3 font-black text-slate-500 uppercase text-[10px] tracking-widest active:scale-95 transition-all">
-                                        <div className="text-emerald-600 bg-emerald-50 p-2 rounded-xl"><Icon.History /></div>
-                                        Movimiento
-                                    </button>
-                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-7 rounded-[3.5rem] shadow-xl text-emerald-950 flex flex-col items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">
-                                        <Icon.Plus />
-                                        Cuenta
-                                    </button>
+                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-8 rounded-[3.5rem] shadow-sm font-black text-slate-500 uppercase text-[10px] tracking-widest active:scale-95 transition-all">OPERAR</button>
+                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-8 rounded-[3.5rem] shadow-xl text-emerald-950 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">CUENTA</button>
                                 </div>
-                                <section className="space-y-4">
-                                    <h3 className="font-black text-slate-800 uppercase tracking-widest text-[11px] opacity-40 px-4">Mis Activos</h3>
+                                <div className="space-y-4">
                                     {accounts.map(acc => (
-                                        <div key={acc.id} className="bg-white p-6 rounded-[3rem] shadow-sm flex items-center justify-between group overflow-hidden">
-                                            <div className="flex items-center gap-4 min-w-0">
-                                                <div className={`p-3 rounded-2xl flex-shrink-0 ${acc.type === 'wallet' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                    <Icon.Wallet />
-                                                </div>
-                                                <div className="truncate">
-                                                    <p className="font-black text-slate-800 text-lg leading-none mb-1 truncate">{acc.name}</p>
-                                                    <span className="text-[10px] font-black uppercase text-slate-400">{acc.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
-                                                </div>
+                                        <div key={acc.id} className="bg-white p-6 rounded-[3rem] shadow-sm flex items-center justify-between">
+                                            <div className="truncate pr-4">
+                                                <p className="font-black text-slate-800 text-lg leading-none mb-1 truncate">{acc.name}</p>
+                                                <span className="text-[10px] font-black uppercase text-slate-400">{acc.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
                                             </div>
-                                            <div className="flex items-center gap-4 flex-shrink-0 pl-2">
-                                                <p className="font-black text-slate-900 text-lg tracking-tighter">${Number(acc.balance).toLocaleString('es-AR')}</p>
+                                            <div className="flex items-center gap-4 flex-shrink-0">
+                                                <p className="font-black text-slate-900 text-xl tracking-tighter font-mono">${Number(acc.balance).toLocaleString('es-AR')}</p>
                                                 <button onClick={() => db.collection(`usuarios/${user.uid}/cuentas`).doc(acc.id).delete()} className="text-slate-200 hover:text-rose-500 transition-colors"><Icon.Trash /></button>
                                             </div>
                                         </div>
                                     ))}
-                                </section>
+                                </div>
                             </div>
                         )}
 
                         {activeTab === 'goals' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-10 rounded-[4rem] font-black text-emerald-600 text-xs uppercase flex flex-col items-center gap-2">
-                                    <Icon.Plus /> Nueva Meta
-                                </button>
+                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-10 rounded-[4rem] font-black text-emerald-600 text-xs uppercase">+ Meta</button>
                                 {goals.map(g => {
-                                    const currentBalance = g.status === 'active' ? stats.totalNum : 0;
-                                    const progress = Math.min((currentBalance / (g.targetAmount || 1)) * 100, 100);
+                                    const curr = g.status === 'active' ? stats.totalNum : 0;
+                                    const percent = Math.min((curr / (g.target || 1)) * 100, 100);
                                     return (
-                                        <div key={g.id} className="bg-white p-7 rounded-[3.5rem] shadow-sm flex items-center justify-between">
+                                        <div key={g.id} className="bg-white p-6 rounded-[3.5rem] shadow-sm flex items-center justify-between">
                                             <div className="flex items-center gap-4 min-w-0">
-                                                <CircularProgress percentage={progress} />
+                                                <CircularChart percent={percent} />
                                                 <div className="truncate">
-                                                    <p className="font-black text-slate-800 text-2xl leading-none mb-2 truncate uppercase italic tracking-tighter">{g.name}</p>
-                                                    <p className="text-[11px] font-bold text-slate-400 uppercase">
-                                                        ${currentBalance.toLocaleString()} / ${(g.targetAmount||0).toLocaleString()}
+                                                    <p className="font-black text-slate-800 text-2xl leading-none uppercase tracking-tighter italic mb-1 truncate">{g.name}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">
+                                                        ${curr.toLocaleString()} / ${Number(g.target).toLocaleString()}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <button 
-                                                    onClick={() => db.collection(`usuarios/${user.uid}/metas`).doc(g.id).update({ status: g.status === 'active' ? 'inactive' : 'active' })} 
-                                                    className={`p-4 rounded-3xl transition-all ${g.status === 'active' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}
-                                                >
-                                                    {g.status === 'active' ? <Icon.Pause /> : <Icon.Play />}
+                                            <div className="flex gap-2 ml-2 flex-shrink-0">
+                                                <button onClick={() => db.collection(`usuarios/${user.uid}/metas`).doc(g.id).update({status: g.status==='active'?'inactive':'active'})} 
+                                                    className={`p-4 rounded-3xl ${g.status==='active' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                    {g.status==='active' ? <Icon.Pause /> : <Icon.Play />}
                                                 </button>
-                                                <button onClick={() => setModal({type:'editGoal', data: g})} className="p-4 bg-slate-50 text-slate-400 rounded-3xl"><Icon.Edit /></button>
+                                                <button onClick={() => setModal({type:'editGoal', g})} className="p-4 bg-slate-50 text-slate-400 rounded-3xl"><Icon.Edit /></button>
                                                 <button onClick={() => db.collection(`usuarios/${user.uid}/metas`).doc(g.id).delete()} className="p-4 bg-rose-50 text-rose-400 rounded-3xl"><Icon.Trash /></button>
                                             </div>
                                         </div>
@@ -269,85 +239,71 @@
 
                         {activeTab === 'debts' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-10 rounded-[4.5rem] font-black text-rose-600 text-xs uppercase flex flex-col items-center gap-2">
-                                    <Icon.Plus /> Cargar Deuda
-                                </button>
-                                {debts.map(d => {
-                                    const totalRestante = (d.amount || 0) - (d.paidAmount || 0);
-                                    return (
-                                        <div key={d.id} className="bg-white p-7 rounded-[3.5rem] shadow-sm flex items-center justify-between group">
-                                            <div className="min-w-0">
-                                                <p className="font-black text-slate-800 text-2xl leading-none mb-1 truncate uppercase tracking-tighter italic">{d.name}</p>
-                                                <p className="text-[11px] font-bold text-rose-400 uppercase">Pendiente: ${totalRestante.toLocaleString()}</p>
-                                            </div>
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <button onClick={() => setModal({type:'payDebt', id:d.id, paid: d.paidAmount || 0})} className="bg-emerald-500 text-white px-5 py-4 rounded-3xl font-black text-xs shadow-lg shadow-emerald-100">PAGAR</button>
-                                                <button onClick={() => setModal({type:'editDebt', data: d})} className="p-4 bg-slate-50 text-slate-400 rounded-3xl"><Icon.Edit /></button>
-                                                <button onClick={() => db.collection(`usuarios/${user.uid}/deudas`).doc(d.id).delete()} className="p-4 bg-rose-50 text-rose-400 rounded-3xl"><Icon.Trash /></button>
-                                            </div>
+                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-10 rounded-[4rem] font-black text-rose-600 text-xs uppercase">+ Deuda</button>
+                                {debts.map(d => (
+                                    <div key={d.id} className="bg-white p-7 rounded-[3.5rem] shadow-sm flex items-center justify-between">
+                                        <div className="min-w-0">
+                                            <p className="font-black text-slate-800 text-2xl leading-none uppercase tracking-tighter italic mb-1 truncate">{d.name}</p>
+                                            <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest font-mono">
+                                                Faltan: ${(Number(d.amount) - Number(d.paid || 0)).toLocaleString()}
+                                            </p>
                                         </div>
-                                    );
-                                })}
+                                        <div className="flex gap-2 ml-2 flex-shrink-0">
+                                            <button onClick={() => setModal({type:'pay', d})} className="bg-emerald-500 text-white px-5 py-4 rounded-[1.5rem] font-black text-[10px] uppercase shadow-lg shadow-emerald-100 active:scale-90">PAGAR</button>
+                                            <button onClick={() => setModal({type:'editDebt', d})} className="p-4 bg-slate-50 text-slate-400 rounded-3xl"><Icon.Edit /></button>
+                                            <button onClick={() => db.collection(`usuarios/${user.uid}/deudas`).doc(d.id).delete()} className="p-4 bg-rose-50 text-rose-400 rounded-3xl"><Icon.Trash /></button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </main>
 
                     <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[90]">
                         <div className="bg-slate-900/95 backdrop-blur-3xl px-12 py-8 rounded-[4rem] flex justify-between items-center shadow-2xl">
-                            <button onClick={() => setActiveTab('home')} className={`transition-all ${activeTab === 'home' ? 'text-emerald-400 scale-125' : 'text-white/20'}`}><Icon.General /></button>
-                            <button onClick={() => setActiveTab('goals')} className={`transition-all ${activeTab === 'goals' ? 'text-emerald-400 scale-125' : 'text-white/20'}`}><Icon.Goals /></button>
-                            <div className="relative">
-                                <button onClick={() => setModal('tx')} className={`w-16 h-16 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] shadow-xl active:scale-90 transition-all ${isDebtMode ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-emerald-950'}`}>
-                                    <Icon.Plus />
-                                </button>
-                            </div>
-                            <button onClick={() => setActiveTab('debts')} className={`transition-all ${activeTab === 'debts' ? 'text-rose-400 scale-125' : 'text-white/20'}`}><Icon.Debts /></button>
-                            <button className="text-white/20"><Icon.History /></button>
+                            <button onClick={() => setActiveTab('home')} className={activeTab === 'home' ? 'text-emerald-400 scale-125 transition-all' : 'text-white/20'}><Icon.General /></button>
+                            <button onClick={() => setActiveTab('goals')} className={activeTab === 'goals' ? 'text-emerald-400 scale-125 transition-all' : 'text-white/20'}><Icon.Goals /></button>
+                            <button onClick={() => setModal('tx')} className={`w-14 h-14 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] shadow-xl ${isDebtMode ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-emerald-950'}`}><Icon.Plus /></button>
+                            <button onClick={() => setActiveTab('debts')} className={activeTab === 'debts' ? 'text-rose-400 scale-125 transition-all' : 'text-white/20'}><Icon.Debts /></button>
+                            <button className="text-white/20"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg></button>
                         </div>
                     </nav>
 
                     {modal && (
-                        <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md px-0 sm:px-4">
-                            <div className="bg-white w-full max-w-md rounded-t-[5rem] sm:rounded-[4rem] p-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
-                                <div className="flex justify-between items-center mb-8">
-                                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">
-                                        {modal.type === 'payDebt' ? 'Abonar Deuda' : 'Cargar Datos'}
-                                    </h3>
-                                    <button onClick={() => setModal(null)} className="text-slate-300 font-black text-3xl p-2 transition-transform hover:scale-110">×</button>
+                        <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md">
+                            <div className="bg-white w-full max-w-md rounded-t-[5rem] p-12 shadow-2xl animate-in slide-in-from-bottom">
+                                <div className="flex justify-between items-center mb-10">
+                                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">{modal.type==='pay'?'Abonar':'Cargar'}</h3>
+                                    <button onClick={() => setModal(null)} className="text-slate-300 font-black text-3xl p-2">×</button>
                                 </div>
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
                                     const d = new FormData(e.target);
-                                    const path = `usuarios/${user.uid}`;
+                                    const p = `usuarios/${user.uid}`;
                                     
-                                    if (modal === 'acc') await db.collection(`${path}/cuentas`).add({ name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')) });
-                                    if (modal === 'goal') await db.collection(`${path}/metas`).add({ name: d.get('n'), targetAmount: Number(d.get('t')), currentAmount: 0, status: 'inactive' });
-                                    if (modal.type === 'editGoal') await db.collection(`${path}/metas`).doc(modal.data.id).update({ name: d.get('n'), targetAmount: Number(d.get('t')) });
-                                    if (modal === 'debt') await db.collection(`${path}/deudas`).add({ name: d.get('n'), amount: Number(d.get('a')), paidAmount: 0 });
-                                    if (modal.type === 'editDebt') await db.collection(`${path}/deudas`).doc(modal.data.id).update({ name: d.get('n'), amount: Number(d.get('a')) });
-                                    if (modal.type === 'payDebt') {
-                                        const nuevoPago = Number(d.get('pago'));
-                                        await db.collection(`${path}/deudas`).doc(modal.id).update({ paidAmount: (modal.paid || 0) + nuevoPago });
-                                    }
+                                    if (modal === 'acc') await db.collection(`${p}/cuentas`).add({ name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')) });
+                                    if (modal === 'goal') await db.collection(`${p}/metas`).add({ name: d.get('n'), target: Number(d.get('t')), status: 'inactive' });
+                                    if (modal.type === 'editGoal') await db.collection(`${p}/metas`).doc(modal.g.id).update({ name: d.get('n'), target: Number(d.get('t')) });
+                                    if (modal === 'debt') await db.collection(`${p}/deudas`).add({ name: d.get('n'), amount: Number(d.get('a')), paid: 0 });
+                                    if (modal.type === 'editDebt') await db.collection(`${p}/deudas`).doc(modal.d.id).update({ name: d.get('n'), amount: Number(d.get('a')) });
+                                    if (modal.type === 'pay') await db.collection(`${p}/deudas`).doc(modal.d.id).update({ paid: (Number(modal.d.paid)||0) + Number(d.get('amt')) });
                                     if (modal === 'tx') {
-                                        const accId = d.get('acc');
-                                        const acc = accounts.find(a => a.id === accId);
-                                        const amt = Number(d.get('amt'));
-                                        const newB = d.get('type') === 'i' ? Number(acc.balance) + amt : Number(acc.balance) - amt;
-                                        await db.collection(`${path}/cuentas`).doc(accId).update({ balance: newB });
+                                        const aid = d.get('acc'); const acc = accounts.find(a => a.id === aid);
+                                        const amt = Number(d.get('amt')); const newB = d.get('type') === 'i' ? Number(acc.balance) + amt : Number(acc.balance) - amt;
+                                        await db.collection(`${p}/cuentas`).doc(aid).update({ balance: newB });
                                     }
                                     setModal(null);
                                 }} className="space-y-6">
-                                    {modal === 'acc' && <><input name="n" required placeholder="Nombre (ej. Galicia)" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Virtual / Banco</option><option value="cash">Efectivo</option></select><input name="b" type="number" required placeholder="Saldo actual" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
-                                    {(modal === 'goal' || modal.type === 'editGoal') && <><input name="n" defaultValue={modal.data?.name} required placeholder="Nombre de la meta" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" defaultValue={modal.data?.targetAmount} type="number" required placeholder="Monto objetivo $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
-                                    {(modal === 'debt' || modal.type === 'editDebt') && <><input name="n" defaultValue={modal.data?.name} required placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" defaultValue={modal.data?.amount} type="number" required placeholder="Monto total $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600 text-center" /></>}
-                                    {modal.type === 'payDebt' && <><input name="pago" type="number" required placeholder="¿Cuánto vas a pagar? $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-5xl text-center text-emerald-600" /></>}
+                                    {modal === 'acc' && <><input name="n" required placeholder="Nombre" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Virtual</option><option value="cash">Efectivo</option></select><input name="b" type="number" required placeholder="Saldo" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
+                                    {(modal === 'goal' || modal.type === 'editGoal') && <><input name="n" defaultValue={modal.g?.name} required placeholder="Meta" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" defaultValue={modal.g?.target} type="number" required placeholder="Objetivo $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
+                                    {(modal === 'debt' || modal.type === 'editDebt') && <><input name="n" defaultValue={modal.d?.name} required placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" defaultValue={modal.d?.amount} type="number" required placeholder="Monto Total $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600" /></>}
+                                    {modal.type === 'pay' && <input name="amt" type="number" required placeholder="Abonar $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-5xl text-center text-emerald-600" />}
                                     {modal === 'tx' && <>
-                                        <select name="acc" required className="w-full p-5 bg-slate-50 rounded-2xl font-bold">{accounts.map(a => <option key={a.id} value={a.id}>{a.name} (${(a.balance||0).toLocaleString()})</option>)}</select>
-                                        <div className="flex gap-4"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="i" defaultChecked className="mr-2" /> INGRESO</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="g" className="mr-2" /> GASTO</label></div>
+                                        <select name="acc" required className="w-full p-5 bg-slate-50 rounded-2xl font-bold">{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+                                        <div className="flex gap-4"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black text-xs cursor-pointer"><input type="radio" name="type" value="i" defaultChecked className="mr-2" /> INGRESO</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black text-xs cursor-pointer"><input type="radio" name="type" value="g" className="mr-2" /> GASTO</label></div>
                                         <input name="amt" type="number" required placeholder="Monto $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-5xl text-center" />
                                     </>}
-                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest mt-4 hover:bg-slate-800 transition-colors shadow-xl">Confirmar</button>
+                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl">Confirmar</button>
                                 </form>
                             </div>
                         </div>
