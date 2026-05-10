@@ -6,7 +6,7 @@
     <title>Billetera Verde - Eze</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase Compat SDKs (Los más estables para este uso) -->
+    <!-- Firebase Compat SDKs (IMPORTANTE: Sin estas versiones la app falla) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -35,7 +35,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- TU CONFIGURACIÓN DE FIREBASE ---
+        // --- TU CONFIGURACIÓN DE FIREBASE (Verificada) ---
         const firebaseConfig = {
             apiKey: "AIzaSyDtmxXb4wdkelAGeISytgj5JqQ3BGZvpzM",
             authDomain: "billetera-personal-d4ca9.firebaseapp.com",
@@ -45,13 +45,15 @@
             appId: "1:762760084018:web:de9213b7defd8e1dc11a2b"
         };
 
-        // Inicializar Firebase
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        // Inicializar Firebase (Solo una vez)
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // Icono de Huella Real (SVG)
+        // Icono de Huella de Gato
         const PawIcon = ({ className }) => (
             <svg viewBox="0 0 100 100" className={className} fill="currentColor">
                 <path d="M50 85c-12 0-22-8-22-22 0-12 10-22 22-22s22 10 22 22c0 14-10 22-22 22zM28 38c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16-14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm24 0c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9zm16 14c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9z" />
@@ -67,91 +69,76 @@
             const [goals, setGoals] = useState([]);
             const [debts, setDebts] = useState([]);
             const [modal, setModal] = useState(null);
-            const [error, setError] = useState(null);
 
-            // 1. Escuchar sesión
+            // 1. Escuchar sesión al cargar
             useEffect(() => {
-                return auth.onAuthStateChanged((u) => {
+                const unsubAuth = auth.onAuthStateChanged((u) => {
                     setUser(u);
                     setIsAuthChecking(false);
                 });
+                return () => unsubAuth();
             }, []);
 
-            // 2. Cargar datos si hay usuario
+            // 2. Cargar datos si el usuario está logueado
             useEffect(() => {
                 if (!user) return;
                 
                 setIsLoadingData(true);
                 const path = `usuarios/${user.uid}`;
                 
-                // Suscripciones seguras
-                const unsubAcc = db.collection(`${path}/cuentas`).onSnapshot(
-                    s => setAccounts(s.docs.map(d => ({id: d.id, ...d.data()}))),
-                    e => setError("Error al cargar cuentas")
-                );
-                const unsubGoals = db.collection(`${path}/metas`).onSnapshot(
-                    s => setGoals(s.docs.map(d => ({id: d.id, ...d.data()}))),
-                    e => setError("Error al cargar metas")
-                );
-                const unsubDebts = db.collection(`${path}/deudas`).onSnapshot(
-                    s => {
-                        setDebts(s.docs.map(d => ({id: d.id, ...d.data()})));
-                        // Terminamos la carga después de un pequeño delay visual
-                        setTimeout(() => setIsLoadingData(false), 2000);
-                    },
-                    e => setError("Error al cargar deudas")
-                );
+                // Suscripciones a Firestore
+                const unsubAcc = db.collection(`${path}/cuentas`).onSnapshot(s => {
+                    setAccounts(s.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                const unsubGoals = db.collection(`${path}/metas`).onSnapshot(s => {
+                    setGoals(s.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                const unsubDebts = db.collection(`${path}/deudas`).onSnapshot(s => {
+                    setDebts(s.docs.map(d => ({id: d.id, ...d.data()})));
+                    // Simular carga para que el gato se vea
+                    setTimeout(() => setIsLoadingData(false), 2500);
+                });
 
                 return () => { unsubAcc(); unsubGoals(); unsubDebts(); };
             }, [user]);
 
-            // Cálculos matemáticos protegidos contra nulos
+            // Cálculos
             const stats = useMemo(() => {
-                const safeAcc = accounts || [];
-                const safeDeb = debts || [];
-                const dig = safeAcc.filter(a => a.type === 'wallet').reduce((s, a) => s + Number(a.balance || 0), 0);
-                const cash = safeAcc.filter(a => a.type === 'cash').reduce((s, a) => s + Number(a.balance || 0), 0);
-                const debtTotal = safeDeb.reduce((s, d) => s + Number(d.amount || 0), 0);
-                
-                const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v);
-                return { total: fmt(dig + cash), dig: fmt(dig), cash: fmt(cash), deb: fmt(debtTotal) };
+                const accs = accounts || [];
+                const dts = debts || [];
+                const dig = accs.filter(a => a.type === 'wallet').reduce((s, a) => s + Number(a.balance || 0), 0);
+                const cash = accs.filter(a => a.type === 'cash').reduce((s, a) => s + Number(a.balance || 0), 0);
+                const deb = dts.reduce((s, d) => s + Number(d.amount || 0), 0);
+                const fmt = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
+                return { total: fmt(dig + cash), dig: fmt(dig), cash: fmt(cash), deb: fmt(deb) };
             }, [accounts, debts]);
 
-            // PANTALLA DE CARGA / ERROR
+            // --- VISTAS DE ESTADO ---
+
             if (isAuthChecking || (user && isLoadingData)) return (
                 <div className="fixed inset-0 bg-white flex flex-col items-center justify-center overflow-hidden">
-                    {error ? (
-                        <div className="text-center p-10">
-                            <div className="text-rose-500 font-black mb-4">¡ALGO SALIÓ MAL!</div>
-                            <div className="text-slate-400 text-xs mb-8">{error}</div>
-                            <button onClick={() => window.location.reload()} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase">Reintentar</button>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="flex gap-4 mb-8">
-                                <PawIcon className="w-12 h-12 text-emerald-600 paw" />
-                                <PawIcon className="w-12 h-12 text-emerald-600 paw d1" />
-                                <PawIcon className="w-12 h-12 text-emerald-600 paw d2" />
-                            </div>
-                            <div className="text-center">
-                                <h2 className="text-4xl font-black italic text-emerald-950 uppercase mb-1 tracking-tighter">GENERAL</h2>
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em]">Sincronizando...</p>
-                            </div>
-                            <div className="absolute bottom-0 w-full flex justify-center translate-y-[20%]">
-                                <img src="1778434269697~2.png" alt="Gata" className="w-full max-w-sm h-auto" />
-                            </div>
-                        </>
-                    )}
+                    <div className="flex gap-4 mb-8">
+                        <PawIcon className="w-12 h-12 text-emerald-600 paw" />
+                        <PawIcon className="w-12 h-12 text-emerald-600 paw d1" />
+                        <PawIcon className="w-12 h-12 text-emerald-600 paw d2" />
+                    </div>
+                    <div className="text-center">
+                        <h2 className="text-4xl font-black italic text-emerald-950 uppercase mb-1 tracking-tighter">GENERAL</h2>
+                        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em]">Sincronizando...</p>
+                    </div>
+                    {/* GATA ASOMÁNDOSE POR ABAJO */}
+                    <div className="absolute bottom-0 w-full flex justify-center translate-y-[20%]">
+                        <img src="1778434269697~2.png" alt="Gata" className="w-full max-w-sm h-auto" />
+                    </div>
                 </div>
             );
 
-            // PANTALLA LOGIN
             if (!user) return (
-                <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8">
-                    <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center">
+                <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8 overflow-hidden">
+                    <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center relative z-10">
                         <div className="bg-emerald-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-emerald-600 font-black text-4xl italic">$</div>
                         <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter text-slate-900">Verde App</h1>
-                        <p className="text-slate-400 font-bold mb-10 text-[10px] uppercase tracking-widest px-4">Tus finanzas seguras en la nube</p>
+                        <p className="text-slate-400 font-bold mb-12 text-[10px] uppercase tracking-widest px-4 leading-loose">Tus finanzas seguras y guardadas en la nube</p>
                         <button 
                             onClick={() => auth.signInWithPopup(provider)}
                             className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
@@ -159,31 +146,35 @@
                             Ingresar con Google
                         </button>
                     </div>
+                    <div className="absolute bottom-0 opacity-10 pointer-events-none translate-y-16">
+                        <img src="1778434269697~2.png" alt="Cat" className="w-full max-w-md" />
+                    </div>
                 </div>
             );
 
-            // INTERFAZ DASHBOARD
+            // --- DASHBOARD ---
+
             return (
                 <div className="min-h-screen pb-44 no-scrollbar">
                     <header className={`${activeTab === 'debts' ? 'bg-rose-800' : 'bg-emerald-800'} pt-16 pb-28 px-8 rounded-b-[4.5rem] shadow-2xl transition-all duration-700 relative overflow-hidden`}>
-                        <div className="max-w-xl mx-auto relative z-10 text-white text-center sm:text-left">
+                        <div className="max-w-xl mx-auto relative z-10 text-white">
                             <div className="flex justify-between items-center mb-10">
                                 <h1 className="text-3xl font-black italic uppercase tracking-tighter">
                                     {activeTab === 'home' ? 'GENERAL' : activeTab === 'goals' ? 'OBJETIVOS' : 'DEUDAS'}
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black">SALIR</button>
+                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase">SALIR</button>
                             </div>
-                            <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{isDebtMode ? 'DEUDA PENDIENTE' : 'BALANCE TOTAL'}</p>
-                            <h2 className="text-6xl font-black tracking-tighter mb-12">{isDebtMode ? stats.deb : stats.total}</h2>
+                            <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{activeTab === 'debts' ? 'Deuda Pendiente' : 'Balance Total'}</p>
+                            <h2 className="text-6xl font-black tracking-tighter mb-12">{activeTab === 'debts' ? stats.deb : stats.total}</h2>
                             
                             {activeTab === 'home' && (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/5">
-                                        <p className="text-[10px] font-black uppercase text-emerald-200 mb-1">Digital</p>
+                                    <div className="bg-white/10 backdrop-blur-md p-5 rounded-[2rem] border border-white/10">
+                                        <p className="text-[10px] font-black uppercase text-emerald-300 mb-1">Digital</p>
                                         <p className="text-2xl font-bold font-mono tracking-tighter">{stats.dig}</p>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/5">
-                                        <p className="text-[10px] font-black uppercase text-amber-200 mb-1">Efectivo</p>
+                                    <div className="bg-white/10 backdrop-blur-md p-5 rounded-[2rem] border border-white/10">
+                                        <p className="text-[10px] font-black uppercase text-amber-300 mb-1">Efectivo</p>
                                         <p className="text-2xl font-bold font-mono tracking-tighter">{stats.cash}</p>
                                     </div>
                                 </div>
@@ -195,19 +186,19 @@
                         {activeTab === 'home' && (
                             <div className="space-y-12 animate-in fade-in">
                                 <div className="flex gap-4">
-                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-8 rounded-[3rem] shadow-sm font-black text-slate-500 uppercase text-[10px] tracking-widest active:scale-95 transition-all">OPERAR</button>
-                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-8 rounded-[3rem] shadow-xl text-emerald-950 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">CUENTA</button>
+                                    <button onClick={() => setModal('tx')} className="flex-1 bg-white p-8 rounded-[3.5rem] shadow-sm font-black text-slate-500 uppercase text-xs active:scale-95 transition-all">OPERAR</button>
+                                    <button onClick={() => setModal('acc')} className="flex-1 bg-emerald-500 p-8 rounded-[3.5rem] shadow-xl text-emerald-950 font-black text-xs uppercase active:scale-95 transition-all">CUENTA</button>
                                 </div>
                                 <div className="space-y-4">
                                     {accounts.map(a => (
-                                        <div key={a.id} className="bg-white p-7 rounded-[3rem] shadow-sm flex items-center justify-between group">
+                                        <div key={a.id} className="bg-white p-7 rounded-[3rem] shadow-sm flex items-center justify-between">
                                             <div>
-                                                <p className="font-black text-slate-800 text-lg leading-none mb-1">{a.name}</p>
-                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{a.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
+                                                <p className="font-black text-slate-800 text-lg mb-1 leading-none">{a.name}</p>
+                                                <span className="text-[10px] font-black uppercase text-slate-400">{a.type === 'wallet' ? 'Virtual' : 'Efectivo'}</span>
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <p className="font-black text-slate-900 text-xl tracking-tighter">${Number(a.balance || 0).toLocaleString('es-AR')}</p>
-                                                <button onClick={() => db.collection(`usuarios/${user.uid}/cuentas`).doc(a.id).delete()} className="text-rose-300 hover:text-rose-600 font-black text-xl px-2">×</button>
+                                                <button onClick={() => db.collection(`usuarios/${user.uid}/cuentas`).doc(a.id).delete()} className="text-rose-200 hover:text-rose-500 font-black px-2 transition-colors">×</button>
                                             </div>
                                         </div>
                                     ))}
@@ -217,14 +208,14 @@
 
                         {activeTab === 'goals' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-12 rounded-[4rem] font-black text-emerald-600 text-xs uppercase">Nuevo Objetivo</button>
+                                <button onClick={() => setModal('goal')} className="w-full bg-white border-2 border-dashed border-emerald-200 p-10 rounded-[4rem] font-black text-emerald-600 text-xs uppercase">Nuevo Objetivo</button>
                                 {goals.map(g => (
                                     <div key={g.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between group">
                                         <div>
                                             <p className="font-black text-slate-800 text-2xl leading-none mb-2">{g.name}</p>
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${(g.currentAmount||0).toLocaleString()} de ${(g.targetAmount||0).toLocaleString()}</p>
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${(g.currentAmount||0).toLocaleString()} / ${(g.targetAmount||0).toLocaleString()}</p>
                                         </div>
-                                        <button onClick={() => setModal({type:'save', id:g.id})} className="bg-emerald-600 text-white px-7 py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-100">SUMAR</button>
+                                        <button onClick={() => setModal({type:'save', id:g.id})} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg active:scale-90 transition-all">SUMAR</button>
                                     </div>
                                 ))}
                             </div>
@@ -232,13 +223,13 @@
 
                         {activeTab === 'debts' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-12 rounded-[4rem] font-black text-rose-600 text-xs uppercase">Cargar Deuda</button>
+                                <button onClick={() => setModal('debt')} className="w-full bg-white border-2 border-dashed border-rose-200 p-10 rounded-[4rem] font-black text-rose-600 text-xs uppercase">Cargar Deuda</button>
                                 {debts.map(d => (
-                                    <div key={d.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between group">
+                                    <div key={d.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between">
                                         <p className="font-black text-slate-800 text-2xl leading-none">{d.name}</p>
                                         <div className="flex items-center gap-4">
                                             <p className="font-black text-rose-600 text-3xl tracking-tighter">${Number(d.amount || 0).toLocaleString()}</p>
-                                            <button onClick={() => db.collection(`usuarios/${user.uid}/deudas`).doc(d.id).delete()} className="text-rose-200 hover:text-rose-500 font-black text-xl px-2">×</button>
+                                            <button onClick={() => db.collection(`usuarios/${user.uid}/deudas`).doc(d.id).delete()} className="text-rose-200 hover:text-rose-500 font-black px-2">×</button>
                                         </div>
                                     </div>
                                 ))}
@@ -246,22 +237,21 @@
                         )}
                     </main>
 
-                    <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[90]">
+                    {/* NAVBAR */}
+                    <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[90]">
                         <div className="bg-slate-900/95 backdrop-blur-3xl px-12 py-8 rounded-[4rem] flex justify-between items-center shadow-2xl">
                             <button onClick={() => setActiveTab('home')} className={`text-2xl transition-all ${activeTab === 'home' ? 'text-emerald-400 scale-125 font-black' : 'text-white/20'}`}>■</button>
                             <button onClick={() => setActiveTab('goals')} className={`text-2xl transition-all ${activeTab === 'goals' ? 'text-emerald-400 scale-125 font-black' : 'text-white/20'}`}>●</button>
-                            <div className="relative">
-                                <button onClick={() => setModal('tx')} className={`w-14 h-14 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] text-3xl font-black shadow-xl active:scale-90 transition-all ${isDebtMode ? 'bg-rose-500' : 'bg-emerald-500'}`}>+</button>
-                            </div>
+                            <button onClick={() => setModal('tx')} className={`w-14 h-14 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] text-3xl font-black transition-all shadow-xl active:scale-90 ${activeTab === 'debts' ? 'bg-rose-500' : 'bg-emerald-500'}`}>+</button>
                             <button onClick={() => setActiveTab('debts')} className={`text-2xl transition-all ${activeTab === 'debts' ? 'text-rose-400 scale-125 font-black' : 'text-white/20'}`}>▲</button>
                             <button className="text-white/20 text-2xl font-black">H</button>
                         </div>
                     </nav>
 
-                    {/* MODALES */}
+                    {/* MODAL */}
                     {modal && (
-                        <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md">
-                            <div className="bg-white w-full max-w-md rounded-t-[4rem] sm:rounded-[3.5rem] p-10 shadow-2xl animate-in slide-in-from-bottom">
+                        <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md px-0 sm:px-4">
+                            <div className="bg-white w-full max-w-md rounded-t-[4.5rem] sm:rounded-[3.5rem] p-10 shadow-2xl animate-in slide-in-from-bottom">
                                 <div className="flex justify-between items-center mb-8 px-2">
                                     <h3 className="text-xl font-black italic uppercase tracking-tighter">Cargar Datos</h3>
                                     <button onClick={() => setModal(null)} className="text-slate-300 font-black text-3xl p-2">×</button>
@@ -271,32 +261,27 @@
                                     const d = new FormData(e.target);
                                     const path = `usuarios/${user.uid}`;
                                     
-                                    try {
-                                        if (modal === 'acc') await db.collection(`${path}/cuentas`).add({ name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')) });
-                                        if (modal === 'goal') await db.collection(`${path}/metas`).add({ name: d.get('n'), targetAmount: Number(d.get('t')), currentAmount: 0 });
-                                        if (modal === 'debt') await db.collection(`${path}/deudas`).add({ name: d.get('n'), amount: Number(d.get('a')) });
-                                        if (modal === 'tx') {
-                                            const accId = d.get('acc');
-                                            const acc = accounts.find(a => a.id === accId);
-                                            const amt = Number(d.get('amt'));
-                                            const newB = d.get('type') === 'i' ? Number(acc.balance || 0) + amt : Number(acc.balance || 0) - amt;
-                                            await db.collection(`${path}/cuentas`).doc(accId).update({ balance: newB });
-                                        }
-                                        if (modal.type === 'save') {
-                                            const amt = Number(d.get('amt'));
-                                            const accId = d.get('acc');
-                                            const acc = accounts.find(a => a.id === accId);
-                                            const goal = goals.find(g => g.id === modal.id);
-                                            await db.collection(`${path}/cuentas`).doc(accId).update({ balance: Number(acc.balance || 0) - amt });
-                                            await db.collection(`${path}/metas`).doc(modal.id).update({ currentAmount: Number(goal.currentAmount || 0) + amt });
-                                        }
-                                        setModal(null);
-                                    } catch (err) {
-                                        setError("No se pudo guardar: " + err.message);
-                                        setModal(null);
+                                    if (modal === 'acc') await db.collection(`${path}/cuentas`).add({ name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')) });
+                                    if (modal === 'goal') await db.collection(`${path}/metas`).add({ name: d.get('n'), targetAmount: Number(d.get('t')), currentAmount: 0 });
+                                    if (modal === 'debt') await db.collection(`${path}/deudas`).add({ name: d.get('n'), amount: Number(d.get('a')) });
+                                    if (modal === 'tx') {
+                                        const accId = d.get('acc');
+                                        const acc = accounts.find(a => a.id === accId);
+                                        const amt = Number(d.get('amt'));
+                                        const newB = d.get('type') === 'i' ? Number(acc.balance || 0) + amt : Number(acc.balance || 0) - amt;
+                                        await db.collection(`${path}/cuentas`).doc(accId).update({ balance: newB });
                                     }
+                                    if (modal.type === 'save') {
+                                        const amt = Number(d.get('amt'));
+                                        const accId = d.get('acc');
+                                        const acc = accounts.find(a => a.id === accId);
+                                        const goal = goals.find(g => g.id === modal.id);
+                                        await db.collection(`${path}/cuentas`).doc(accId).update({ balance: Number(acc.balance || 0) - amt });
+                                        await db.collection(`${path}/metas`).doc(modal.id).update({ currentAmount: Number(goal.currentAmount || 0) + amt });
+                                    }
+                                    setModal(null);
                                 }} className="space-y-5">
-                                    {modal === 'acc' && <><input name="n" required placeholder="Nombre" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Digital</option><option value="cash">Efectivo</option></select><input name="b" type="number" required placeholder="Saldo actual" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
+                                    {modal === 'acc' && <><input name="n" required placeholder="Nombre (ej. Galicia)" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Virtual / Banco</option><option value="cash">Efectivo</option></select><input name="b" type="number" required placeholder="Saldo actual" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
                                     {modal === 'goal' && <><input name="n" required placeholder="Meta" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" type="number" required placeholder="Objetivo $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
                                     {modal === 'debt' && <><input name="n" required placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" type="number" required placeholder="Total $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600 text-center" /></>}
                                     {(modal === 'tx' || modal.type === 'save') && <>
@@ -304,7 +289,7 @@
                                         {modal === 'tx' && <div className="flex gap-3"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="i" defaultChecked className="mr-1" /> INGRESO</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black text-[10px] cursor-pointer"><input type="radio" name="type" value="g" className="mr-1" /> GASTO</label></div>}
                                         <input name="amt" type="number" required placeholder="Monto $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-5xl text-center" />
                                     </>}
-                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest mt-4 active:scale-95 transition-all">Confirmar</button>
+                                    <button className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest mt-4">Confirmar</button>
                                 </form>
                             </div>
                         </div>
