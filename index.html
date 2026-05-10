@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Billetera - Gato Vigilante</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide-react@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes pawBounce {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-15px) scale(1.1); opacity: 1; }
+        }
+        .animate-paw { animation: pawBounce 1.5s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-[#F8FAF9]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const { 
+            Wallet, PlusCircle, Plus, Trash2, History, CreditCard, Banknote, 
+            ArrowUpRight, ArrowDownLeft, X, LayoutGrid, Smartphone, Coins, 
+            Target, Play, AlertCircle, TrendingDown, Info, LogOut, LogIn 
+        } = lucideReact;
+
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        // REEMPLAZA ESTO CON TUS CREDENCIALES DE FIREBASE CONSOLE
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Imports de Firebase vía CDN ESM
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // --- COMPONENTES ---
+
+        const RealisticPaw = ({ delay }) => (
+            <div className="animate-paw" style={{ animationDelay: delay }}>
+                <svg width="50" height="50" viewBox="0 0 100 100" fill="currentColor" className="text-emerald-600">
+                    <path d="M50 85 C 35 85, 25 75, 25 60 C 25 45, 35 35, 50 35 C 65 35, 75 45, 75 60 C 75 75, 65 85, 50 85" />
+                    <ellipse cx="25" cy="35" rx="10" ry="14" />
+                    <ellipse cx="42" cy="20" rx="10" ry="14" />
+                    <ellipse cx="58" cy="20" rx="10" ry="14" />
+                    <ellipse cx="75" cy="35" rx="10" ry="14" />
+                </svg>
+            </div>
+        );
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [activeTab, setActiveTab] = useState('home');
+            const [accounts, setAccounts] = useState([]);
+            const [goals, setGoals] = useState([]);
+            const [debts, setDebts] = useState([]);
+            
+            const [modals, setModals] = useState({ account: false, transaction: false, goal: false, debt: false, addFunds: null });
+
+            const isDebtMode = activeTab === 'debts';
+            const themeBg = isDebtMode ? 'bg-rose-800' : 'bg-emerald-800';
+            const themeBtn = isDebtMode ? 'bg-rose-500' : 'bg-emerald-500';
+
+            const currentTitle = useMemo(() => {
+                if (activeTab === 'goals') return 'OBJETIVOS';
+                if (activeTab === 'debts') return 'DEUDAS';
+                return 'GENERAL';
+            }, [activeTab]);
+
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, (u) => {
+                    setUser(u);
+                    if (!u) setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const path = `users/${user.uid}`;
+                
+                const unsubAcc = onSnapshot(collection(db, path, 'accounts'), (snap) => setAccounts(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                const unsubGoals = onSnapshot(collection(db, path, 'goals'), (snap) => setGoals(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                const unsubDebts = onSnapshot(collection(db, path, 'debts'), (snap) => {
+                    setDebts(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                    setTimeout(() => setLoading(false), 3000);
+                });
+
+                return () => { unsubAcc(); unsubGoals(); unsubDebts(); };
+            }, [user]);
+
+            const totals = useMemo(() => {
+                const digital = accounts.filter(a => a.type === 'wallet').reduce((s, a) => s + Number(a.balance), 0);
+                const cash = accounts.filter(a => a.type === 'cash').reduce((s, a) => s + Number(a.balance), 0);
+                const debtT = debts.reduce((s, d) => s + Number(d.amount), 0);
+                const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v);
+                return { total: fmt(digital + cash), digital: fmt(digital), cash: fmt(cash), debts: fmt(debtT) };
+            }, [accounts, debts]);
+
+            if (loading) return (
+                <div className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
+                    <div className="flex gap-6 mb-12">
+                        <RealisticPaw delay="0s" />
+                        <RealisticPaw delay="0.2s" />
+                        <RealisticPaw delay="0.4s" />
+                    </div>
+                    <div className="text-center">
+                        <h2 className="text-5xl font-black italic text-emerald-950 uppercase mb-2 animate-pulse">CARGANDO</h2>
+                        <p className="text-slate-400 font-bold text-xs tracking-[0.5em]">VERDE APP</p>
+                    </div>
+                    <div className="absolute bottom-0 w-full flex justify-center pointer-events-none translate-y-[15%]">
+                        <img src="1000249994.png" alt="Gata Vigilante" className="w-full max-w-[450px]" />
+                    </div>
+                </div>
+            );
+
+            if (!user) return (
+                <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8">
+                    <div className="bg-white rounded-[3.5rem] p-12 shadow-2xl w-full max-w-md text-center">
+                        <div className="bg-emerald-50 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 text-emerald-600">
+                            <Wallet size={48} />
+                        </div>
+                        <h1 className="text-4xl font-black italic text-slate-900 mb-4 uppercase">VERDE</h1>
+                        <p className="text-slate-400 font-medium mb-10 leading-relaxed uppercase tracking-widest text-xs">Administra tus finanzas con estilo</p>
+                        <button 
+                            onClick={() => signInWithPopup(auth, provider)}
+                            className="w-full bg-slate-900 text-white flex items-center justify-center gap-4 py-5 rounded-3xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl"
+                        >
+                            <LogIn size={24} /> Ingresar con Google
+                        </button>
+                    </div>
+                    <div className="absolute bottom-0 opacity-30 pointer-events-none translate-y-12">
+                        <img src="1000249994.png" alt="Cat" className="w-full max-w-md" />
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-[#F8FAF9] pb-40">
+                    <header className={`${themeBg} pt-16 pb-24 px-8 rounded-b-[4rem] shadow-2xl relative overflow-hidden transition-colors duration-700`}>
+                        <div className="max-w-xl mx-auto relative z-10 text-white">
+                            <div className="flex justify-between items-center mb-12">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
+                                        {activeTab === 'home' ? <Wallet size={24}/> : activeTab === 'goals' ? <Target size={24}/> : <AlertCircle size={24}/>}
+                                    </div>
+                                    <h1 className="text-3xl font-black italic uppercase tracking-tighter">{currentTitle}</h1>
+                                </div>
+                                <button onClick={() => signOut(auth)} className="bg-white/10 p-3 rounded-full border border-white/10"><LogOut size={20}/></button>
+                            </div>
+                            <div className="animate-in fade-in slide-in-from-top duration-500">
+                                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">{isDebtMode ? 'DEUDA TOTAL' : 'BALANCE TOTAL'}</p>
+                                <h2 className="text-6xl font-black tracking-tighter mb-10">{isDebtMode ? totals.debts : totals.total}</h2>
+                                {activeTab === 'home' && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/5">
+                                            <p className="text-[11px] font-black uppercase text-emerald-200 mb-1">Digital</p>
+                                            <p className="text-2xl font-bold">{totals.digital}</p>
+                                        </div>
+                                        <div className="bg-white/10 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/5">
+                                            <p className="text-[11px] font-black uppercase text-amber-200 mb-1">Efectivo</p>
+                                            <p className="text-2xl font-bold">{totals.cash}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-xl mx-auto px-8 -mt-10 space-y-12 relative z-20">
+                        {activeTab === 'home' && (
+                            <div className="space-y-12">
+                                <div className="flex gap-4">
+                                    <button onClick={() => setModals({...modals, transaction: true})} className="flex-1 bg-white p-8 rounded-[3rem] shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                        <div className="bg-emerald-50 p-4 rounded-3xl text-emerald-600"><PlusCircle size={32}/></div>
+                                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">Operar</span>
+                                    </button>
+                                    <button onClick={() => setModals({...modals, account: true})} className="flex-1 bg-emerald-500 p-8 rounded-[3rem] shadow-xl text-emerald-950 flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                        <Plus size={40} />
+                                        <span className="text-xs font-black uppercase tracking-widest">Cuenta</span>
+                                    </button>
+                                </div>
+                                <section className="space-y-4">
+                                    <h3 className="font-black text-slate-800 uppercase tracking-widest text-[11px] opacity-40 px-4">Mis Activos</h3>
+                                    {accounts.map(acc => (
+                                        <div key={acc.id} className="bg-white p-7 rounded-[3rem] shadow-sm flex items-center justify-between group">
+                                            <div className="flex items-center gap-5">
+                                                <div className={`p-4 rounded-[1.5rem] ${acc.type === 'wallet' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                    {acc.type === 'wallet' ? <Smartphone size={24}/> : <Coins size={24}/>}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-slate-800 text-lg leading-none mb-2">{acc.name}</p>
+                                                    <span className="text-[10px] font-black uppercase text-slate-400">{acc.type === 'wallet' ? 'Digital' : 'Cash'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <p className="font-black text-slate-900 text-xl tracking-tighter">${Number(acc.balance).toLocaleString()}</p>
+                                                <button onClick={() => deleteDoc(doc(db, `users/${user.uid}/accounts`, acc.id))} className="text-slate-100 hover:text-red-400 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={20}/></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </section>
+                            </div>
+                        )}
+
+                        {activeTab === 'goals' && (
+                            <div className="space-y-6">
+                                <button onClick={() => setModals({...modals, goal: true})} className="w-full bg-white border-2 border-dashed border-emerald-200 p-12 rounded-[4rem] flex flex-col items-center gap-4 text-emerald-600">
+                                    <Target size={44}/>
+                                    <span className="font-black uppercase text-sm tracking-widest">Nueva Meta</span>
+                                </button>
+                                {goals.map(goal => (
+                                    <div key={goal.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between">
+                                        <div className="flex items-center gap-6">
+                                            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-3xl font-black text-xs min-w-[65px] text-center">
+                                                {Math.round((goal.currentAmount/goal.targetAmount)*100)}%
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-slate-800 text-2xl leading-tight mb-1">{goal.name}</p>
+                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${goal.currentAmount.toLocaleString()} ahorrados</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {goal.status === 'inactive' ? (
+                                                <button onClick={() => updateDoc(doc(db, `users/${user.uid}/goals`, goal.id), { status: 'active' })} className="text-emerald-600 p-3"><Play size={32} fill="currentColor"/></button>
+                                            ) : (
+                                                <button onClick={() => setModals({...modals, addFunds: goal.id})} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Aportar</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'debts' && (
+                            <div className="space-y-6">
+                                <button onClick={() => setModals({...modals, debt: true})} className="w-full bg-white border-2 border-dashed border-rose-200 p-12 rounded-[4rem] flex flex-col items-center gap-4 text-rose-600">
+                                    <AlertCircle size={44}/>
+                                    <span className="font-black uppercase text-sm tracking-widest">Cargar Deuda</span>
+                                </button>
+                                {debts.map(debt => (
+                                    <div key={debt.id} className="bg-white p-8 rounded-[3.5rem] shadow-sm flex items-center justify-between">
+                                        <div className="flex items-center gap-6">
+                                            <div className="bg-rose-50 text-rose-600 p-5 rounded-[2rem]"><TrendingDown size={32}/></div>
+                                            <p className="font-black text-slate-800 text-2xl leading-tight">{debt.name}</p>
+                                        </div>
+                                        <p className="font-black text-rose-600 text-3xl tracking-tighter">${debt.amount.toLocaleString()}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+
+                    <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-sm z-[90]">
+                        <div className="bg-slate-900/90 backdrop-blur-2xl px-12 py-7 rounded-[3.5rem] flex justify-between items-center shadow-[0_25px_60px_rgba(0,0,0,0.5)]">
+                            <button onClick={() => setActiveTab('home')} className={activeTab === 'home' ? 'text-emerald-400 scale-125 transition-all' : 'text-white/30'}><LayoutGrid size={28}/></button>
+                            <button onClick={() => setActiveTab('goals')} className={activeTab === 'goals' ? 'text-emerald-400 scale-125 transition-all' : 'text-white/30'}><Target size={28}/></button>
+                            <div className="relative">
+                                <button onClick={() => setModals({...modals, transaction: true})} className={`${themeBtn} w-16 h-16 rounded-full flex items-center justify-center -mt-24 border-4 border-[#F8FAF9] shadow-2xl text-slate-950 active:scale-90 transition-all`}>
+                                    <Plus size={40} />
+                                </button>
+                            </div>
+                            <button onClick={() => setActiveTab('debts')} className={activeTab === 'debts' ? 'text-rose-400 scale-125 transition-all' : 'text-white/30'}><AlertCircle size={28}/></button>
+                            <button className="text-white/30"><History size={28}/></button>
+                        </div>
+                    </nav>
+
+                    {/* MODALES REUTILIZABLES */}
+                    {Object.entries(modals).map(([key, value]) => {
+                        if (!value) return null;
+                        const close = () => setModals({...modals, [key]: false, addFunds: null});
+                        return (
+                            <div key={key} className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+                                <div className="bg-white w-full max-w-md rounded-t-[4.5rem] sm:rounded-[3.5rem] p-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
+                                    <div className="flex justify-between items-center mb-10 uppercase italic font-black text-2xl tracking-tighter">
+                                        <h3>{key === 'account' ? 'Nueva Cuenta' : key === 'goal' ? 'Nueva Meta' : key === 'debt' ? 'Cargar Deuda' : 'Movimiento'}</h3>
+                                        <button onClick={close} className="p-2 text-slate-400"><X size={30}/></button>
+                                    </div>
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const d = new FormData(e.target);
+                                        const path = `users/${user.uid}`;
+                                        if (key === 'account') await addDoc(collection(db, path, 'accounts'), { name: d.get('n'), type: d.get('t'), balance: Number(d.get('b')), createdAt: serverTimestamp() });
+                                        if (key === 'goal') await addDoc(collection(db, path, 'goals'), { name: d.get('n'), targetAmount: Number(d.get('t')), currentAmount: 0, status: 'inactive', createdAt: serverTimestamp() });
+                                        if (key === 'debt') await addDoc(collection(db, path, 'debts'), { name: d.get('n'), amount: Number(d.get('a')), createdAt: serverTimestamp() });
+                                        if (key === 'transaction') {
+                                            const accId = d.get('acc');
+                                            const acc = accounts.find(a => a.id === accId);
+                                            const amt = Number(d.get('amt'));
+                                            const newB = d.get('type') === 'i' ? acc.balance + amt : acc.balance - amt;
+                                            await updateDoc(doc(db, path, 'accounts', accId), { balance: newB });
+                                        }
+                                        if (key === 'addFunds') {
+                                            const goalId = modals.addFunds;
+                                            const amt = Number(d.get('amt'));
+                                            const accId = d.get('acc');
+                                            const acc = accounts.find(a => a.id === accId);
+                                            const goal = goals.find(g => g.id === goalId);
+                                            await updateDoc(doc(db, path, 'accounts', accId), { balance: acc.balance - amt });
+                                            await updateDoc(doc(db, path, 'goals', goalId), { currentAmount: goal.currentAmount + amt });
+                                        }
+                                        close();
+                                    }} className="space-y-6">
+                                        {key === 'account' && <><input name="n" placeholder="Nombre" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><select name="t" className="w-full p-5 bg-slate-50 rounded-2xl font-bold"><option value="wallet">Virtual</option><option value="cash">Efectivo</option></select><input name="b" type="number" placeholder="Saldo inicial" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-2xl" /></>}
+                                        {key === 'goal' && <><input name="n" placeholder="Nombre de meta" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="t" type="number" placeholder="Objetivo $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl" /></>}
+                                        {key === 'debt' && <><input name="n" placeholder="Entidad" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" /><input name="a" type="number" placeholder="Monto $" className="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl text-rose-600" /></>}
+                                        {(key === 'transaction' || key === 'addFunds') && <>
+                                            <select name="acc" className="w-full p-5 bg-slate-50 rounded-2xl font-bold">{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+                                            {key === 'transaction' && <div className="flex gap-4"><label className="flex-1 p-4 bg-emerald-50 rounded-2xl text-center font-black uppercase text-xs"><input type="radio" name="type" value="i" defaultChecked /> Ingreso</label><label className="flex-1 p-4 bg-rose-50 rounded-2xl text-center font-black uppercase text-xs"><input type="radio" name="type" value="g" /> Gasto</label></div>}
+                                            <input name="amt" type="number" placeholder="Monto $" className="w-full p-6 bg-slate-50 rounded-2xl font-black text-4xl text-center" />
+                                            {key === 'transaction' && <input name="cat" placeholder="Concepto" className="w-full p-5 bg-slate-50 rounded-2xl font-bold" />}
+                                        </>}
+                                        <button className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-widest">Confirmar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
