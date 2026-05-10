@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Billetera Verde - Eze</title>
+    <title>Cydonia Industries - Billetera</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase Compat SDKs -->
@@ -33,7 +33,6 @@
         .d2 { animation-delay: 0.4s; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
-        /* Sombra suave para elementos flotantes */
         .soft-shadow { box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
     </style>
 </head>
@@ -58,7 +57,7 @@
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- NUEVOS ICONOS DETALLADOS (SVG) ---
+        // --- ICONOS DETALLADOS ---
         const Icon = {
             General: () => (
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -140,7 +139,7 @@
                 const unsubGoals = db.collection(`${path}/metas`).onSnapshot(s => setGoals(s.docs.map(d => ({id: d.id, ...d.data()}))));
                 const unsubDebts = db.collection(`${path}/deudas`).onSnapshot(s => {
                     setDebts(s.docs.map(d => ({id: d.id, ...d.data()})));
-                    setTimeout(() => setIsLoadingData(false), 2000);
+                    setTimeout(() => setIsLoadingData(false), 3000); // Un poco más de tiempo para apreciar el logo
                 });
 
                 return () => { unsubAcc(); unsubGoals(); unsubDebts(); };
@@ -157,18 +156,28 @@
             }, [accounts, debts]);
 
             if (isAuthChecking || (user && isLoadingData)) return (
-                <div className="fixed inset-0 bg-white flex flex-col items-center justify-center overflow-hidden">
-                    <div className="flex gap-4 mb-8">
+                <div className="fixed inset-0 bg-white flex flex-col items-center justify-between overflow-hidden pt-20">
+                    {/* Sección Superior: Huellas */}
+                    <div className="flex gap-4">
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw" />
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw d1" />
                         <Icon.Paw className="w-12 h-12 text-emerald-600 paw d2" />
                     </div>
-                    <div className="text-center">
-                        <h2 className="text-4xl font-black italic text-emerald-950 uppercase mb-1 tracking-tighter">GENERAL</h2>
-                        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em]">Sincronizando...</p>
+
+                    {/* Sección Central: Logo Cydonia Industries */}
+                    <div className="text-center z-10">
+                        <h2 className="text-6xl font-black italic text-emerald-950 uppercase mb-0 tracking-tighter">CYDONIA</h2>
+                        <p className="text-emerald-800 font-black text-xl uppercase tracking-[0.3em] mb-6">INDUSTRIES</p>
+                        <p className="text-slate-300 font-bold text-[10px] uppercase tracking-[0.4em] animate-pulse">Sincronizando...</p>
                     </div>
-                    <div className="absolute bottom-0 w-full flex justify-center translate-y-[20%]">
-                        <img src="1778434269697~2.png" alt="Gata" className="w-full max-w-sm h-auto" />
+
+                    {/* Sección Inferior: Gata Vigilante */}
+                    <div className="w-full flex justify-center translate-y-[15%]">
+                        <img 
+                            src="1778434269697~2.png" 
+                            alt="Gata" 
+                            className="w-full max-w-sm h-auto object-contain"
+                        />
                     </div>
                 </div>
             );
@@ -177,7 +186,7 @@
                 <div className="min-h-screen bg-emerald-900 flex flex-col items-center justify-center p-8">
                     <div className="bg-white rounded-[4rem] p-10 w-full max-w-md shadow-2xl text-center">
                         <div className="bg-emerald-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-emerald-600 font-black text-4xl italic">$</div>
-                        <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter text-slate-900">Verde App</h1>
+                        <h1 className="text-4xl font-black italic uppercase mb-2 tracking-tighter">Verde App</h1>
                         <p className="text-slate-400 font-bold mb-10 text-[10px] uppercase tracking-widest px-4">Tus finanzas seguras en la nube</p>
                         <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Ingresar con Google</button>
                     </div>
@@ -192,7 +201,7 @@
                                 <h1 className="text-3xl font-black italic uppercase tracking-tighter">
                                     {activeTab === 'home' ? 'GENERAL' : activeTab === 'goals' ? 'OBJETIVOS' : 'DEUDAS'}
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black">SALIR</button>
+                                <button onClick={() => auth.signOut()} className="bg-white/10 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase">SALIR</button>
                             </div>
                             <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">{activeTab === 'debts' ? 'DEUDA PENDIENTE' : 'BALANCE TOTAL'}</p>
                             <h2 className="text-6xl font-black tracking-tighter mb-12">{activeTab === 'debts' ? stats.deb : stats.total}</h2>
